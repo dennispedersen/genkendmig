@@ -1,0 +1,139 @@
+<!doctype html>
+
+<html lang="en">
+<!-- html lang="en" manifest="cache.manifest" -->
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    
+    <title>HTML Sample</title>
+
+    <!-- iOS -->
+    <link rel="apple-touch-icon" href="icons/ios/icon-120.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="icons/ios/icon-152.png">
+    <link rel="apple-touch-icon" sizes="167x167" href="icons/ios/icon-167.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/ios/icon-180.png">
+    <link rel="apple-touch-startup-image" href="splashscreen.png">
+
+    <meta name="apple-mobile-web-app-title" content="Web App">
+    <meta name="apple-mobile-web-app-capable" content="yes"><!-- No header etc. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="blue">
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.10/lodash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sprintf/1.1.1/sprintf.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+</head>
+
+<body style="margin-left: 20px"> 
+    <h1>Sample app</h1>
+
+    <video id="player" autoplay></video>
+    <button id="capture">Capture</button>
+    <canvas id="canvas" width=320 height=240></canvas>
+
+    <div id="response"></div>
+
+    <button type="button" onclick="recognize()">Click Me!</button>
+
+</body>
+
+<script>
+
+    const player = document.getElementById('player');
+    const canvas = document.getElementById('canvas');
+    const context = canvas.getContext('2d');
+    const captureButton = document.getElementById('capture');
+    var imageData;
+    var blob;
+
+    canvas.style.display="none";
+
+    const constraints = {
+        video: true,
+    };
+
+    captureButton.addEventListener('click', () => {
+        // Draw the video frame to the canvas.
+        context.drawImage(player, 0, 0, canvas.width, canvas.height);
+        imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        canvas.toBlob(function(b) {
+            blob = b;
+            console.dir(blob);
+        }, "image/jpg");
+        console.dir(imageData);
+    });
+
+    // Attach the video stream to the video element and autoplay.
+    navigator.mediaDevices.getUserMedia(constraints)
+        .then((stream) => {
+            player.srcObject = stream;
+        });
+
+    function addEmotionStringIfExceedsLimit(emotionProperty, emotionString, emotionStrings) {
+        const includeLimit = 0.3;
+        if (emotionProperty && parseFloat(emotionProperty) >= includeLimit) {
+             emotionStrings.push(emotionString);
+        }
+    }
+
+    function renderEmotion(emotion) {
+        var emotionStrings = [];
+        if ( ! emotion) {
+            return emotionStrings;
+        }
+
+        addEmotionStringIfExceedsLimit(emotion.anger, "vred", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.contempt, "foragtelig", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.disgust, "afskyende", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.fear, "bange", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.happiness, "glad", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.neutral, "neutral", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.sadness, "trist", emotionStrings);
+        addEmotionStringIfExceedsLimit(emotion.surprise, "overrasket", emotionStrings);
+
+        console.dir(emotionStrings);
+        return emotionStrings.length > 0 ? _.join(emotionStrings, " og ") : "neutral";
+    }
+
+    function renderGender(gender) {
+        return gender == "male" ? "mand" : "kvinde";
+    }
+
+    function renderAge(age) {
+        return age + " år";
+
+    }
+
+    function renderAttributes(faceAttr) {
+        var emotionString = renderEmotion(faceAttr.emotion);
+        var genderString = renderGender(faceAttr.gender);
+
+
+        var ageString  = renderAge(faceAttr.age);
+
+        var s = sprintf('Du er en %s på %s som virker %s', genderString, ageString, emotionString);
+        return s;
+    }
+
+    function recognize() {
+        $.ajax({
+            type: "POST",
+            url: "https://northeurope.api.cognitive.microsoft.com/face/v1.0/detect?returnFaceId=true&returnFaceAttributes=age,smile,gender,emotion,accessories",
+            headers: {
+                "Content-Type": "application/octet-stream",
+                "Ocp-Apim-Subscription-Key": "348b2a2320004e8ebae8d166aacf5447"
+            },
+            processData: false,
+            data: blob
+        }).then(function (data) {
+            console.dir(data);
+            var faceAttr = data[0].faceAttributes;
+            $('#response').html(renderAttributes(faceAttr));
+        });
+    }
+
+</script>
+
+
+
+</--html>
